@@ -1,0 +1,201 @@
+This is the Prometheus and Grafana connection or open interface:
+
+Prometheus → An open-source monitoring and alerting tool. It collects and stores metrics 
+			(like CPU, memory, network usage) from applications and systems in a time-series database.
+
+Grafana → An open-source visualization and dashboard tool. It takes data from Prometheus (or other sources) 
+		  and shows it in charts, graphs, and dashboards for easy monitoring.
+		  
+👉 Simply:
+Prometheus = collects & stores metrics
+Grafana = visualizes metrics on dashboards
+-----------------------------------------Definition over------------------------------------
+Let’s set up everything from scratch inside your EC2:
+
+Step 1: Update System--
+
+	(Depending on AMI: Amazon Linux uses yum, Ubuntu uses apt)
+
+	sudo yum update -y   # for Amazon Linux
+
+	sudo apt update -y   # for Ubuntu
+
+-----------------------------------------------------------------------
+	
+Step 2: Install Prometheus--
+
+	# Download Prometheus
+	wget https://github.com/prometheus/prometheus/releases/download/v2.55.0/prometheus-2.55.0.linux-amd64.tar.gz
+
+	# Extract
+	tar -xvzf prometheus-2.55.0.linux-amd64.tar.gz
+
+	# Go inside folder
+	cd prometheus-2.55.0.linux-amd64
+
+-------------------------------------------------------------------------
+
+Step 3: Run Prometheus--
+
+	./prometheus --config.file=prometheus.yml --web.listen-address="0.0.0.0:9090"
+
+	# Keep this terminal open, OR run in background:
+
+	nohup ./prometheus --config.file=prometheus.yml --web.listen-address="0.0.0.0:9090" > prometheus.log 2>&1 &
+
+-------------------------------------------------------------------------
+
+Step 4: Install Grafana
+
+	For Amazon Linux:
+
+	sudo yum install -y https://dl.grafana.com/oss/release/grafana-11.1.4-1.x86_64.rpm    #For linux
+
+	For Amazon Ubuntu:
+
+	sudo apt install -y https://dl.grafana.com/oss/release/grafana-11.1.4-1.x86_64.rpm    #For Ubuntu, If it gives error below code run it
+	
+	wget https://dl.grafana.com/oss/release/grafana_11.1.4_amd64.deb 
+
+	sudo apt install -y ./grafana_11.1.4_amd64.deb
+
+----------------------------------------------------------------------------
+	
+Step 5: Start Grafana
+
+		sudo systemctl start grafana-server
+		sudo systemctl enable grafana-server
+
+----------------------------------------------------------------------------
+		
+Step 6: Test in Browser
+
+Prometheus → http://15.168.140.169:9090 (this is the public IP of EC2 Instance after connect. see below in that page
+										   9090 is the common)
+
+Grafana → http://15.168.140.169:3000 (this is the public IP of EC2 Instance after connect. see below in that page
+										    3000 is the common)
+----------------------------------------------------------------------------
+											
+Step 7:
+
+	By default, Grafana login is:
+
+	Username: admin
+
+	Password: admin
+
+	👉 On first login, it will ask you to set a new password.
+
+	You can type your email if you want (optional), or just leave it blank and continue.
+
+------------------------------------------------------------------------------
+
+Step 8:
+
+	# After Login Grafana Steps:
+		Go to Configuration → Data Sources → Add Data Source
+		Select Prometheus
+	Set URL:
+			http://<Ec2 Public IP>:9090
+
+	Click Save & Test → should say “Data source is working”.
+
+	Now you can create dashboards & panels.
+
+------------------------------------------------------------------------------
+
+Step 9: Install Node Exporter
+
+Run inside your EC2:
+
+	# Download Node Exporter
+		wget https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-amd64.tar.gz
+
+	# Extract
+		tar -xvzf node_exporter-1.8.2.linux-amd64.tar.gz
+		cd node_exporter-1.8.2.linux-amd64
+	# Start Node Exporter
+		nohup ./node_exporter --web.listen-address="0.0.0.0:9100" > node_exporter.log 2>&1 &
+
+-------------------------------------------------------------------------------
+
+Step 10: Open in browser-
+
+	http://15.168.140.169:9100/metrics
+	
+Step 11: Update Prometheus Config
+
+	Now go back to your Prometheus folder:
+
+	cd ~/prometheus-2.55.0.linux-amd64
+	nano prometheus.yml
+	
+		# Add this block under scrape_configs and remove all below include scrape_configs :
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "node_exporter"
+    static_configs:
+      - targets: ["localhost:9100"]  
+		  
+	# After that Ctrl O + Enter + Ctrl X
+
+---------------------------------------------------------------------------------------
+	
+Step 12: Restart Prometheus
+
+	# Kill old Prometheus and restart:
+
+	pkill prometheus  #1st coomand
+
+	./prometheus --config.file=prometheus.yml --web.listen-address="0.0.0.0:9090" &  #2nd command
+
+								(or)
+	pkill prometheus
+
+	nohup ./prometheus --config.file=prometheus.yml --web.listen-address="0.0.0.0:9090" > prometheus.log 2>&1 &
+
+---------------------------------------------------------------------------------------
+
+Step 13: Verify
+
+	Open:
+
+	http://15.168.140.169:9090/targets
+
+	👉 You should see node (UP).
+
+---------------------------------------------------------------
+
+Step 14: Open Grafana in browser
+
+	http://15.168.140.169:3000
+	
+	# Login → Go to Dashboards → Import dashboard
+
+	# In the Import via Grafana.com ID box, enter:
+
+	1860
+	# (this is the official Node Exporter Full dashboard)
+
+	Click Load
+
+	Choose your Prometheus Data Source → Click Import
+	
+Step 15: Explore Your EC2 Metrics 🎉
+
+	You’ll now see:
+
+	CPU Usage
+
+	Memory Usage
+
+	Disk I/O
+
+	Network Traffic
+
+	System Load
